@@ -51,7 +51,7 @@ jobs:
       
       # APK Build (Release mode)
       - name: Build APK (Release)
-        run: flutter build apk --release --no-sound-null-safety
+        run: flutter build apk --release
       
       # APK Build (Debug mode - alternatif)
       - name: Build APK (Debug)
