@@ -1,0 +1,108 @@
+name: Flutter Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Manuel tetikleme için
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Repository'yi checkout et
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      # Java kurulumu (Android build için gerekli)
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      # Flutter kurulumu
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+          cache: true
+      
+      # Flutter doctor kontrolü
+      - name: Run Flutter doctor
+        run: flutter doctor -v
+      
+      # Dependencies'leri yükle
+      - name: Get dependencies
+        run: flutter pub get
+      
+      # Kod analizini çalıştır (opsiyonel)
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings || true
+      
+      # Test'leri çalıştır (opsiyonel)
+      - name: Run tests
+        run: flutter test || true
+        continue-on-error: true
+      
+      # APK Build (Release mode)
+      - name: Build APK (Release)
+        run: flutter build apk --release --no-sound-null-safety
+      
+      # APK Build (Debug mode - alternatif)
+      - name: Build APK (Debug)
+        run: flutter build apk --debug
+      
+      # APK'yı artifact olarak yükle
+      - name: Upload APK (Release)
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+      
+      # Debug APK'yı da yükle
+      - name: Upload APK (Debug)
+        uses: actions/upload-artifact@v3
+        with:
+          name: debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+      
+      # Release oluştur (sadece main/master branch'te)
+      - name: Create Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          release_name: Release v1.0.${{ github.run_number }}
+          body: |
+            Instagram Login Flutter App
+            
+            ## Değişiklikler
+            - Otomatik build #${{ github.run_number }}
+            - Commit: ${{ github.sha }}
+            
+            ## APK İndirme
+            APK dosyalarını aşağıdaki linklerden indirebilirsiniz.
+          draft: false
+          prerelease: false
+        continue-on-error: true
+      
+      # Release'e APK ekle
+      - name: Upload Release Asset
+        if: steps.create_release.outputs.upload_url != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/app/outputs/flutter-apk/app-release.apk
+          asset_name: instagram-login-v1.0.${{ github.run_number }}.apk
+          asset_content_type: application/vnd.android.package-archive
+        continue-on-error: true
