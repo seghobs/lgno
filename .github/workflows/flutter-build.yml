@@ -15,11 +15,11 @@ jobs:
     steps:
       # Repository'yi checkout et
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       # Java kurulumu (Android build için gerekli)
       - name: Set up Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -59,50 +59,42 @@ jobs:
       
       # APK'yı artifact olarak yükle
       - name: Upload APK (Release)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
       
       # Debug APK'yı da yükle
       - name: Upload APK (Debug)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
       
-      # Release oluştur (sadece main/master branch'te)
-      - name: Create Release
+      # Release oluştur ve APK'ları ekle (sadece main/master branch'te)
+      - name: Create Release with APKs
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: v1.0.${{ github.run_number }}
-          release_name: Release v1.0.${{ github.run_number }}
+          name: Release v1.0.${{ github.run_number }}
           body: |
-            Instagram Login Flutter App
+            # Instagram Login Flutter App
             
-            ## Değişiklikler
+            ## 🎆 Değişiklikler
             - Otomatik build #${{ github.run_number }}
             - Commit: ${{ github.sha }}
             
-            ## APK İndirme
-            APK dosyalarını aşağıdaki linklerden indirebilirsiniz.
+            ## 📦 APK Dosyaları
+            Aşağıdaki dosyaları indirerek uygulamayı Android cihazınıza kurabilirsiniz:
+            - **Release APK**: Production kullanım için optimize edilmiş
+            - **Debug APK**: Test ve debug için
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-debug.apk
           draft: false
           prerelease: false
-        continue-on-error: true
-      
-      # Release'e APK ekle
-      - name: Upload Release Asset
-        if: steps.create_release.outputs.upload_url != ''
-        uses: actions/upload-release-asset@v1
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: build/app/outputs/flutter-apk/app-release.apk
-          asset_name: instagram-login-v1.0.${{ github.run_number }}.apk
-          asset_content_type: application/vnd.android.package-archive
         continue-on-error: true
